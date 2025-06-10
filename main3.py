@@ -5,7 +5,7 @@ from scipy.stats import pearsonr
 import matplotlib.pyplot as plt # 데이터 시각화를 위해 matplotlib 추가
 import matplotlib.font_manager as fm # 한글 폰트 설정을 위해 추가
 
-# 한글 폰트 설정 (Windows, macOS, Linux 환경에 맞게 설정 필요)
+# 한글 폰트 설정 (Windows, macOS, Linux 환경에 맞게 자동 설정)
 try:
     font_name = None
     if plt.sys.platform == 'win32': # Windows
@@ -18,7 +18,7 @@ try:
         nanum_fonts = [f for f in font_files if 'NanumGothic' in f or 'NanumBarunGothic' in f]
         if nanum_fonts:
             font_name = fm.FontProperties(fname=nanum_fonts[0]).get_name()
-        else: # Nanum 폰트가 없을 경우, 시스템의 다른 한글 폰트 시도 (예: Droid Sans Fallback)
+        else: # Nanum 폰트가 없을 경우, 시스템의 다른 한글 폰트 시도
             korean_fonts = [f for f in font_files if 'DroidSansFallback' in f or 'UnDotum' in f or 'Baekmuk' in f]
             if korean_fonts:
                  font_name = fm.FontProperties(fname=korean_fonts[0]).get_name()
@@ -87,32 +87,39 @@ elif abs(correlation) > 0.4:
 else:
     print("해석: 가격과 환율 간의 선형 관계가 약하거나 거의 없는 것으로 보입니다.")
 
-# --- matplotlib 데이터 시각화 (환율 vs 물가 산점도 및 추세선) ---
-print("\n과거 데이터의 환율과 물가 관계를 시각화합니다 (추세선 포함)...")
+# --- 데이터 시각화 (두 개의 그래프 순차 표시) ---
+print("\n과거 데이터의 환율과 물가 관계를 시각화합니다.")
+print("첫 번째 그래프(추세선 포함) 창을 닫으면 두 번째 그래프(산점도)가 나타납니다.")
 
-# 환율-물가 관계에 대한 단순 선형 추세선 모델 학습
-# 이 모델은 오직 'exchange'만을 사용하여 'price'를 예측합니다 (시각화용).
+# --- 1. 산점도 + 추세선 그래프 ---
 X_trend_scatter = df['exchange'].values.reshape(-1, 1)
 y_trend_scatter = df['price'].values
 trend_model_scatter = LinearRegression()
 trend_model_scatter.fit(X_trend_scatter, y_trend_scatter)
-
-# 추세선을 그리기 위한 x값 범위 설정 (실제 환율 데이터의 최소, 최대값 사용)
 exchange_range_for_trendline = np.array([df['exchange'].min(), df['exchange'].max()]).reshape(-1, 1)
-# 해당 x값 범위에 대한 예측 y값 (추세선)
 price_pred_for_trendline = trend_model_scatter.predict(exchange_range_for_trendline)
 
 plt.figure(figsize=(10, 6))
 plt.scatter(df['exchange'], df['price'], alpha=0.7, label=f'{selected_item_name} 실제 데이터')
 plt.plot(exchange_range_for_trendline, price_pred_for_trendline, color='red', linestyle='--', linewidth=2, label='추세선 (환율-물가)')
-plt.title(f'{selected_item_name} 물가와 환율 관계 (과거 데이터 및 추세선)')
-plt.xlabel('환율 (원)') # 실제 데이터에 맞게 단위 명시 (예: 원/달러)
+plt.title(f'{selected_item_name} 물가와 환율 관계 (추세선 포함)')
+plt.xlabel('환율 (원)')
 plt.ylabel(f'{selected_item_name} 물가 (원)')
 plt.legend()
 plt.grid(True)
-plt.tight_layout() # 그래프 요소들이 겹치지 않도록 조정
-plt.show()
-# plt.show() 실행 후 그래프 창을 닫아야 다음 단계로 진행됩니다.
+plt.tight_layout()
+plt.show() # 첫 번째 그래프 표시 (창을 닫아야 다음으로 진행)
+
+# --- 2. 산점도만 있는 그래프 ---
+plt.figure(figsize=(10, 6)) # 새 그래프 창 생성
+plt.scatter(df['exchange'], df['price'], alpha=0.7, label=f'{selected_item_name} 실제 데이터')
+plt.title(f'{selected_item_name} 물가와 환율 관계 (산점도)')
+plt.xlabel('환율 (원)')
+plt.ylabel(f'{selected_item_name} 물가 (원)')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show() # 두 번째 그래프 표시 (창을 닫아야 다음으로 진행)
 
 # 예측
 date_input_str = input("미래 날짜 입력 (YYYY-MM-DD 형식, 예: 2025-05-07): ")
@@ -128,10 +135,10 @@ if future_date <= df['date'].iloc[-1]:
 
 future_days = (future_date - base_date).days
 
-# 1. 입력된 미래 날짜의 예상 환율 예측 (exchange_model_time 사용)
+# 1. 입력된 미래 날짜의 예상 환율 예측
 predicted_future_exchange = exchange_model_time.predict(np.array([[future_days]]))[0]
 
-# 2. 예상 환율과 미래 날짜를 사용하여 물가 예측 (price_model_multivar 사용)
+# 2. 예상 환율과 미래 날짜를 사용하여 물가 예측
 predicted_future_price = price_model_multivar.predict(np.array([[future_days, predicted_future_exchange]]))[0]
 
 print(f"\n=== {selected_item_name} 물가 예측 결과 ===")
